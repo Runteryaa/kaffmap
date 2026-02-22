@@ -11,7 +11,7 @@ import {
 
 const CONFIG = {
     MIN_ZOOM_LEVEL: 15,
-    FETCH_DELAY: 1200 // Kaydırma sonrası API bekleme süresi
+    FETCH_DELAY: 1200
 };
 
 const INITIAL_DB_PLACES = [
@@ -55,12 +55,18 @@ export default function App() {
 
     const SNAP_POINTS = { full: 0, half: 45, closed: 100 };
 
-    // --- Component Mount (SSR Guard & Leaflet Loader) ---
+    // --- Component Mount (SSR Guard & Leaflet Loader & Theme Init) ---
     useEffect(() => {
         setIsMounted(true);
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        
+        // Akıllı Tema Yükleme: Önce localStorage'a bak, yoksa sistem tercihini kullan
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             setIsDarkMode(true);
             document.documentElement.classList.add('dark');
+        } else {
+            setIsDarkMode(false);
+            document.documentElement.classList.remove('dark');
         }
 
         if (!document.getElementById('leaflet-css')) {
@@ -87,6 +93,21 @@ export default function App() {
             }, 100);
         }
     }, []);
+
+    // --- Tema Değiştirme Fonksiyonu ---
+    const handleThemeToggle = (e) => {
+        const isDark = e.target.checked;
+        setIsDarkMode(isDark);
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+            showToast("Karanlık tema aktif.", "", "info");
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+            showToast("Aydınlık tema aktif.", "", "info");
+        }
+    };
 
     // --- Toast Function ---
     const showToast = useCallback((message, submessage = "", type = "success") => {
@@ -175,13 +196,13 @@ export default function App() {
             marker.on('click', () => handleSelectPlace(place.id));
             markersRef.current.set(place.id, marker);
         });
-    }, [isMounted, isLeafletLoaded, getAllPlaces, searchQuery, selectedPlaceId, isZoomWarningVisible]); // isZoomWarningVisible eklendi!
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMounted, isLeafletLoaded, getAllPlaces, searchQuery, selectedPlaceId, isZoomWarningVisible]);
 
     // --- Logic Functions ---
     const handleZoomChange = () => {
         if (!mapRef.current) return;
         setIsZoomWarningVisible(mapRef.current.getZoom() < CONFIG.MIN_ZOOM_LEVEL);
-        // setSearchQuery(prev => prev); satırı silindi, çünkü artık isZoomWarningVisible değişikliği pinleri tetikleyecek
     };
 
     const handleMapMove = () => {
@@ -197,30 +218,23 @@ export default function App() {
         fetchTimeoutRef.current = window.setTimeout(() => fetchOsmData(0), CONFIG.FETCH_DELAY);
     };
 
-    // Kendi API'miz üzerinden verileri çeken fonksiyon
     const fetchOsmData = async (retryCount = 0) => {
         if (!mapRef.current) return;
         const bounds = mapRef.current.getBounds();
         const s = bounds.getSouth(), w = bounds.getWest(), n = bounds.getNorth(), e = bounds.getEast();
 
-        // İstekleri doğrudan Overpass'e değil, kendi oluşturduğumuz Next.js Route'una gönderiyoruz.
-        // retryCount parametresini ekleyerek, hata alındığında Next.js'in 429 hata yanıtını önbellekten getirmesini engelliyoruz.
         const url = `/api/places?s=${s}&w=${w}&n=${n}&e=${e}&retry=${retryCount}`;
         setIsFetchingVisible(true);
 
         try {
             const response = await fetch(url);
             
-            // Kendi API'miz üzerinden Overpass Rate Limit veya hata dönerse
             if (!response.ok) {
-                // Şansımızı artırmak için 3 kez daha deniyoruz.
-                // API route'umuz her istekte rastgele sunucu seçtiği için farklı bir sunucuya denk geleceğiz.
                 if (retryCount < 3) {
                     console.warn(`API Hatası (${response.status}). Farklı bir sunucu deneniyor... (Deneme: ${retryCount + 1})`);
                     setFetchingText("Farklı sunucu deneniyor...");
-                    // 15 saniye yerine hemen (1 saniye bekleterek) tekrar istek atıyoruz.
                     fetchTimeoutRef.current = window.setTimeout(() => fetchOsmData(retryCount + 1), 1000);
-                    return; // Mevcut bloğu sonlandır
+                    return; 
                 } else {
                     throw new Error(`HTTP ${response.status} kalıcı hatası. Yeniden deneme limiti aşıldı.`);
                 }
@@ -254,10 +268,10 @@ export default function App() {
             }
 
             setOsmPlaces(newOsmPlaces);
-            setIsFetchingVisible(false); // Başarılı olduğunda gizle
+            setIsFetchingVisible(false); 
         } catch (error) {
-            console.warn("API Fetch Hatası:", error.message);
-            setIsFetchingVisible(false); // Tamamen hata verdiğinde gizle
+            console.warn("API Fetch Hatası. İşlem tamamlanamadı.");
+            setIsFetchingVisible(false); 
         }
     };
 
@@ -288,7 +302,7 @@ export default function App() {
             .then(data => {
                 applyLocation(parseFloat(data.latitude), parseFloat(data.longitude), "Yaklaşık konumunuz bulundu", "Cihaz kısıtlaması nedeniyle IP tabanlı bölge kullanıldı.", "info");
             })
-            .catch(err => {
+            .catch(() => {
                 console.warn("IP Location engellendi. Varsayılan konuma gidiliyor.");
                 applyLocation(40.0380, 32.8950, "Önizleme Ortamı", "Tarayıcı güvenliği nedeniyle varsayılan konuma gidildi.", "info");
             });
@@ -310,7 +324,7 @@ export default function App() {
                     return;
                 }
             }
-        } catch (e) {
+        } catch {
             // Permissions API desteklenmiyorsa sessizce yoksay
         }
 
@@ -318,7 +332,7 @@ export default function App() {
             (position) => {
                 applyLocation(position.coords.latitude, position.coords.longitude, "Tam konumunuz bulundu!", "", "success");
             },
-            (error) => {
+            () => {
                 locateUserViaIP();
             },
             { enableHighAccuracy: false, maximumAge: 60000 } 
@@ -445,7 +459,7 @@ export default function App() {
     if (!isMounted) return null;
 
     return (
-        <div className={`antialiased overflow-hidden w-screen h-screen flex flex-col md:flex-row font-sans relative transition-colors duration-300 ${isDarkMode ? 'dark bg-gray-900 text-gray-200' : 'bg-gray-50 text-gray-800'}`}>
+        <div className="antialiased overflow-hidden w-screen h-screen flex flex-col md:flex-row font-sans relative transition-colors duration-300 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
             
             {/* Custom Leaflet Dark Mode CSS Injection */}
             <style dangerouslySetInnerHTML={{__html: `
@@ -501,7 +515,7 @@ export default function App() {
                             <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-500 p-2 rounded-lg">
                                 <MapIcon size={20} />
                             </div>
-                            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">kaf'<span className="text-amber-600 dark:text-amber-500">map</span></h1>
+                            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">kaf&apos;<span className="text-amber-600 dark:text-amber-500">map</span></h1>
                         </div>
                         <button className="md:hidden text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 pointer-events-auto p-2" onClick={() => updatePanelState('closed')}>
                             <X size={20} />
@@ -742,7 +756,7 @@ export default function App() {
                 {/* Mobile Fake Search Button */}
                 <button onClick={openPanelAndFocus} className={`md:hidden absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[500] w-[90%] max-w-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-5 py-3.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 dark:border-gray-700 flex items-center gap-3 transition-all duration-300 origin-bottom hover:bg-gray-50 ${panelStatus !== 'closed' ? 'scale-0 opacity-0 hidden' : ''}`}>
                     <Search className="text-amber-600 ml-1" size={18} />
-                    <span className="font-medium text-gray-500 dark:text-gray-400 text-[15px]">Kaf'map'te arayın...</span>
+                    <span className="font-medium text-gray-500 dark:text-gray-400 text-[15px]">Kaf&apos;map&apos;te arayın...</span>
                 </button>
             </div>
 
@@ -816,11 +830,7 @@ export default function App() {
                                 <Moon className="text-indigo-500" size={20} /> Karanlık Tema
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" checked={isDarkMode} onChange={(e) => {
-                                    setIsDarkMode(e.target.checked);
-                                    if(e.target.checked) document.documentElement.classList.add('dark');
-                                    else document.documentElement.classList.remove('dark');
-                                }} className="sr-only peer" />
+                                <input type="checkbox" checked={isDarkMode} onChange={handleThemeToggle} className="sr-only peer" />
                                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-500 peer-checked:bg-amber-500"></div>
                             </label>
                         </div>
