@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
     Search, Map as MapIcon, X, XCircle, ZoomIn, Radar, 
     LocateFixed, List, Menu, LogIn, UserPlus, Settings, 
@@ -118,7 +118,7 @@ export default function App() {
     }, []);
 
     // --- Helper: Get All Places ---
-    const getAllPlaces = useCallback(() => {
+    const allPlaces = useMemo(() => {
         return [...dbPlaces, ...osmPlaces];
     }, [dbPlaces, osmPlaces]);
 
@@ -163,7 +163,6 @@ export default function App() {
 
         if (mapRef.current.getZoom() < CONFIG.MIN_ZOOM_LEVEL) return;
 
-        const allPlaces = getAllPlaces();
         const filtered = allPlaces.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
         filtered.sort((a, b) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? -1 : 1);
@@ -197,7 +196,7 @@ export default function App() {
             markersRef.current.set(place.id, marker);
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isMounted, isLeafletLoaded, getAllPlaces, searchQuery, selectedPlaceId, isZoomWarningVisible]);
+    }, [isMounted, isLeafletLoaded, allPlaces, searchQuery, selectedPlaceId, isZoomWarningVisible]);
 
     // --- Logic Functions ---
     const handleZoomChange = () => {
@@ -341,7 +340,7 @@ export default function App() {
 
     const handleSelectPlace = (id) => {
         setSelectedPlaceId(id);
-        const place = getAllPlaces().find(p => p.id === id);
+        const place = allPlaces.find(p => p.id === id);
         
         if (place && mapRef.current) {
             const targetZoom = 17;
@@ -453,8 +452,8 @@ export default function App() {
         }, 400);
     };
 
-    const allPlacesList = getAllPlaces().filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? 1 : -1);
-    const activePlace = selectedPlaceId ? getAllPlaces().find(p => p.id === selectedPlaceId) : null;
+    const allPlacesList = allPlaces.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? 1 : -1);
+    const activePlace = selectedPlaceId ? allPlaces.find(p => p.id === selectedPlaceId) : null;
 
     if (!isMounted) return null;
 
