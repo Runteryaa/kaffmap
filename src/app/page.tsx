@@ -25,8 +25,8 @@ export default function App() {
     const [isMounted, setIsMounted] = useState(false);
     const [isLeafletLoaded, setIsLeafletLoaded] = useState(false);
     const [dbPlaces] = useState(INITIAL_DB_PLACES);
-    const [osmPlaces, setOsmPlaces] = useState([]);
-    const [selectedPlaceId, setSelectedPlaceId] = useState(null);
+    const [osmPlaces, setOsmPlaces] = useState<any[]>([]);
+    const [selectedPlaceId, setSelectedPlaceId] = useState<any>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [panelStatus, setPanelStatus] = useState('closed'); // 'closed', 'half', 'full'
     const [isZoomWarningVisible, setIsZoomWarningVisible] = useState(false);
@@ -37,19 +37,19 @@ export default function App() {
     // UI Toggles
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [authMode, setAuthMode] = useState(null); // null, 'login', 'register'
+    const [authMode, setAuthMode] = useState<any>(null); // null, 'login', 'register'
     const [isFullMenuOpen, setIsFullMenuOpen] = useState(false);
 
     // Toast
     const [toast, setToast] = useState({ message: '', submessage: '', type: 'success', visible: false });
 
     // --- Refs ---
-    const mapContainerRef = useRef(null);
-    const mapRef = useRef(null);
+    const mapContainerRef = useRef<any>(null);
+    const mapRef = useRef<any>(null);
     const markersRef = useRef(new Map()); 
-    const fetchTimeoutRef = useRef(undefined); 
-    const userMarkerRef = useRef(null);
-    const panelRef = useRef(null);
+    const fetchTimeoutRef = useRef<any>(undefined);
+    const userMarkerRef = useRef<any>(null);
+    const panelRef = useRef<any>(null);
     const startYRef = useRef(0);
     const startTranslateYRef = useRef(100);
 
@@ -86,7 +86,7 @@ export default function App() {
             document.head.appendChild(script);
         } else {
             const checkReady = setInterval(() => {
-                if (window.L) {
+                if ((window as any).L) {
                     setIsLeafletLoaded(true);
                     clearInterval(checkReady);
                 }
@@ -95,7 +95,7 @@ export default function App() {
     }, []);
 
     // --- Tema Değiştirme Fonksiyonu ---
-    const handleThemeToggle = (e) => {
+    const handleThemeToggle = (e: any) => {
         const isDark = e.target.checked;
         setIsDarkMode(isDark);
         if (isDark) {
@@ -110,7 +110,7 @@ export default function App() {
     };
 
     // --- Toast Function ---
-    const showToast = useCallback((message, submessage = "", type = "success") => {
+    const showToast = useCallback((message: any, submessage: any = "", type: any = "success") => {
         setToast({ message, submessage, type, visible: true });
         window.setTimeout(() => {
             setToast(prev => ({ ...prev, visible: false }));
@@ -126,7 +126,7 @@ export default function App() {
     useEffect(() => {
         if (!isMounted || !isLeafletLoaded || !mapContainerRef.current || mapRef.current) return;
 
-        const L = window.L;
+        const L = (window as any).L;
 
         const map = L.map(mapContainerRef.current, { zoomControl: false }).setView([39.92077, 32.85411], 6);
         mapRef.current = map;
@@ -154,9 +154,9 @@ export default function App() {
     // --- Markers Rendering ---
     useEffect(() => {
         if (!isMounted || !isLeafletLoaded || !mapRef.current) return;
-        const L = window.L;
+        const L = (window as any).L;
 
-        markersRef.current.forEach((marker) => {
+        markersRef.current.forEach((marker: any) => {
             if (mapRef.current) mapRef.current.removeLayer(marker);
         });
         markersRef.current.clear();
@@ -164,11 +164,11 @@ export default function App() {
         if (mapRef.current.getZoom() < CONFIG.MIN_ZOOM_LEVEL) return;
 
         const allPlaces = getAllPlaces();
-        const filtered = allPlaces.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        const filtered = allPlaces.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-        filtered.sort((a, b) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? -1 : 1);
+        filtered.sort((a: any, b: any) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? -1 : 1);
 
-        filtered.forEach(place => {
+        filtered.forEach((place: any) => {
             const isCafe = place.type === 'cafe' || place.type === 'fast_food';
             const iconClass = place.isOsmData ? 'marker-osm' : (isCafe ? 'marker-cafe' : 'marker-restaurant');
             
@@ -241,10 +241,10 @@ export default function App() {
             }
             
             const data = await response.json();
-            const newOsmPlaces = [];
+            const newOsmPlaces: any[] = [];
             
             if (data && data.elements) {
-                data.elements.forEach(node => {
+                data.elements.forEach((node: any) => {
                     const isDuplicate = dbPlaces.some(dbPlace => {
                         const map = mapRef.current;
                         return map && map.distance([dbPlace.lat, dbPlace.lng], [node.lat, node.lon]) < 30;
@@ -275,9 +275,9 @@ export default function App() {
         }
     };
 
-    const applyLocation = (lat, lng, message, submessage, type) => {
-        if (!mapRef.current || !window.L) return;
-        const L = window.L;
+    const applyLocation = (lat: any, lng: any, message: any, submessage: any, type: any) => {
+        if (!mapRef.current || !(window as any).L) return;
+        const L = (window as any).L;
 
         if (userMarkerRef.current) {
             mapRef.current.removeLayer(userMarkerRef.current);
@@ -329,7 +329,7 @@ export default function App() {
         }
 
         navigator.geolocation.getCurrentPosition(
-            (position) => {
+            (position: any) => {
                 applyLocation(position.coords.latitude, position.coords.longitude, "Tam konumunuz bulundu!", "", "success");
             },
             () => {
@@ -339,9 +339,9 @@ export default function App() {
         );
     };
 
-    const handleSelectPlace = (id) => {
+    const handleSelectPlace = (id: any) => {
         setSelectedPlaceId(id);
-        const place = getAllPlaces().find(p => p.id === id);
+        const place = getAllPlaces().find((p: any) => p.id === id);
         
         if (place && mapRef.current) {
             const targetZoom = 17;
@@ -364,7 +364,7 @@ export default function App() {
         setSelectedPlaceId(null);
     };
 
-    const copyToClipboard = (text) => {
+    const copyToClipboard = (text: any) => {
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
@@ -381,7 +381,7 @@ export default function App() {
     };
 
     // --- Drag Logic ---
-    const updatePanelState = (status) => {
+    const updatePanelState = (status: any) => {
         setPanelStatus(status);
         if (window.innerWidth >= 768 || !panelRef.current) {
             if(panelRef.current) {
@@ -395,7 +395,7 @@ export default function App() {
         
         if (status === 'closed') {
             panelRef.current.style.transform = `translateY(${SNAP_POINTS.closed}%)`;
-            if (document.activeElement) document.activeElement.blur();
+            if (document.activeElement) (document.activeElement as any).blur();
         } else if (status === 'half') {
             panelRef.current.style.transform = `translateY(${SNAP_POINTS.half}%)`;
         } else if (status === 'full') {
@@ -403,7 +403,7 @@ export default function App() {
         }
     };
 
-    const onTouchStart = (e) => {
+    const onTouchStart = (e: any) => {
         if (window.innerWidth >= 768 || !panelRef.current) return;
         startYRef.current = e.touches[0].clientY;
         panelRef.current.style.transition = 'none';
@@ -413,7 +413,7 @@ export default function App() {
         else if (panelStatus === 'full') startTranslateYRef.current = SNAP_POINTS.full;
     };
 
-    const onTouchMove = (e) => {
+    const onTouchMove = (e: any) => {
         if (window.innerWidth >= 768 || !startYRef.current || !panelRef.current) return;
         const currentY = e.touches[0].clientY;
         const deltaY = currentY - startYRef.current;
@@ -429,7 +429,7 @@ export default function App() {
         }
     };
 
-    const onTouchEnd = (e) => {
+    const onTouchEnd = (e: any) => {
         if (window.innerWidth >= 768 || !startYRef.current) return;
         const currentY = e.changedTouches[0].clientY;
         const deltaY = currentY - startYRef.current;
@@ -445,7 +445,7 @@ export default function App() {
         if (selectedPlaceId) clearSelection(); 
         updatePanelState('full');
         window.setTimeout(() => {
-            const input = document.getElementById('real-search-input');
+            const input = (document.getElementById('real-search-input') as HTMLInputElement);
             if(input) {
                 input.focus();
                 input.setSelectionRange(input.value.length, input.value.length);
@@ -453,8 +453,8 @@ export default function App() {
         }, 400);
     };
 
-    const allPlacesList = getAllPlaces().filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? 1 : -1);
-    const activePlace = selectedPlaceId ? getAllPlaces().find(p => p.id === selectedPlaceId) : null;
+    const allPlacesList = getAllPlaces().filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase())).sort((a: any, b: any) => (a.isOsmData === b.isOsmData) ? 0 : a.isOsmData ? 1 : -1);
+    const activePlace: any = selectedPlaceId ? getAllPlaces().find((p: any) => p.id === selectedPlaceId) : null;
 
     if (!isMounted) return null;
 
@@ -620,7 +620,7 @@ export default function App() {
                                     <div className="mt-8">
                                         <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-4">Menüden Seçmeler</h3>
                                         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-4 shadow-sm mb-3">
-                                            {activePlace.menu?.slice(0, 3).map((item, idx) => (
+                                            {activePlace.menu?.slice(0, 3).map((item: any, idx: any) => (
                                                 <div key={idx} className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50 last:border-0">
                                                     <span className="text-gray-700 dark:text-gray-300">{item.item}</span>
                                                     <span className="font-semibold text-gray-900 dark:text-white">{item.price}</span>
@@ -657,7 +657,7 @@ export default function App() {
                                         <span className="text-xs text-gray-400 dark:text-gray-500 mt-2 block">Haritada farklı bölgelere kaydırarak yeni mekanlar keşfedebilirsiniz.</span>
                                     </div>
                                 )}
-                                {allPlacesList.map(place => {
+                                {allPlacesList.map((place: any) => {
                                     const isCafe = place.type === 'cafe' || place.type === 'fast_food';
                                     if (place.isOsmData) {
                                         return (
@@ -865,7 +865,7 @@ export default function App() {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-20">
                     <div className="space-y-3">
-                        {activePlace?.menu?.map((item, idx) => (
+                        {activePlace?.menu?.map((item: any, idx: any) => (
                             <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 flex justify-between items-center hover:border-amber-200 dark:hover:border-amber-700 hover:shadow-md transition-all">
                                 <span className="text-gray-800 dark:text-gray-200 font-medium">{item.item}</span>
                                 <div className="bg-gray-50 dark:bg-gray-700 px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-600">
